@@ -1,0 +1,28 @@
+services:
+  mysql:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${MYSQL_CONTAINER_NAME:-mysql}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TZ: ${MYSQL_TIMEZONE:-Asia/Seoul}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  mysql-data:

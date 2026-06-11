@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS health_check (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  message VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO health_check (message)
+VALUES ('mysql initialized');

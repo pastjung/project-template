@@ -1,0 +1,28 @@
+services:
+  postgresql:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${POSTGRES_CONTAINER_NAME:-postgresql}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TZ: ${POSTGRES_TIMEZONE:-Asia/Seoul}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgresql-data:/var/lib/postgresql/data
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  postgresql-data:

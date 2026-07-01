@@ -1,0 +1,12 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE SCHEMA IF NOT EXISTS app;
+
+CREATE TABLE IF NOT EXISTS app.health_check (
+  id BIGSERIAL PRIMARY KEY,
+  message VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO app.health_check (message)
+VALUES ('postgresql initialized');

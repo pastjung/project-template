@@ -1,0 +1,45 @@
+# Normalize text files in the repository.
+* text=auto eol=lf
+
+# Windows command scripts require CRLF line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Gradle wrapper script has no extension; keep it LF so container
+# builds from Windows checkouts work.
+gradlew text eol=lf
+
+# Keep common binary assets untouched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.jar binary
+*.war binary
+*.7z binary
+
+# Fonts and media are binary.
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.mp3 binary
+*.mp4 binary
+*.webm binary
+*.mov binary
+
+# Avoid textual diffs for office and design artifacts.
+*.doc binary
+*.docx binary
+*.ppt binary
+*.pptx binary
+*.xls binary
+*.xlsx binary
+*.fig binary

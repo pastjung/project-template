@@ -1,0 +1,6 @@
+.env.airflow
+.env.postgres
+logs/*
+!logs/.gitkeep
+.env
+__pycache__/

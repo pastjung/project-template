@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 질문 또는 논의
+    url: https://github.com/{{OWNER}}/{{REPOSITORY}}/discussions
+    about: 버그나 기능 요청이 아닌 질문은 Discussion을 사용합니다.

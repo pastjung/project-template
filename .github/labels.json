@@ -1,0 +1,152 @@
+[
+  {
+    "name": "type/feature",
+    "color": "0E8A16",
+    "description": "New feature or enhancement"
+  },
+  {
+    "name": "type/bug",
+    "color": "D73A4A",
+    "description": "Bug or unexpected behavior"
+  },
+  {
+    "name": "type/refactor",
+    "color": "C5DEF5",
+    "description": "Code structure improvement without behavior change"
+  },
+  {
+    "name": "type/docs",
+    "color": "0075CA",
+    "description": "Documentation change"
+  },
+  {
+    "name": "type/hotfix",
+    "color": "B60205",
+    "description": "Urgent production fix"
+  },
+  {
+    "name": "type/release",
+    "color": "5319E7",
+    "description": "Release preparation or version update"
+  },
+  {
+    "name": "type/test",
+    "color": "FBCA04",
+    "description": "Test addition or update"
+  },
+  {
+    "name": "type/chore",
+    "color": "C2E0C6",
+    "description": "Maintenance task or configuration change"
+  },
+  {
+    "name": "priority/high",
+    "color": "B60205",
+    "description": "High priority"
+  },
+  {
+    "name": "priority/medium",
+    "color": "FBCA04",
+    "description": "Medium priority"
+  },
+  {
+    "name": "priority/low",
+    "color": "0E8A16",
+    "description": "Low priority"
+  },
+  {
+    "name": "status/todo",
+    "color": "D4C5F9",
+    "description": "Ready to be worked on"
+  },
+  {
+    "name": "status/in-progress",
+    "color": "FBCA04",
+    "description": "Work in progress"
+  },
+  {
+    "name": "status/review",
+    "color": "1D76DB",
+    "description": "Waiting for review"
+  },
+  {
+    "name": "status/done",
+    "color": "0E8A16",
+    "description": "Completed"
+  },
+  {
+    "name": "status/stale",
+    "color": "A8A8A8",
+    "description": "Inactive issue or pull request marked by stale workflow"
+  },
+  {
+    "name": "needs/triage",
+    "color": "E99695",
+    "description": "Needs initial review and classification"
+  },
+  {
+    "name": "needs/discussion",
+    "color": "D4C5F9",
+    "description": "Needs team discussion before implementation"
+  },
+  {
+    "name": "needs/reproduce",
+    "color": "FBCA04",
+    "description": "Needs reproduction steps or verification"
+  },
+  {
+    "name": "area/backend",
+    "color": "0052CC",
+    "description": "Backend application area"
+  },
+  {
+    "name": "area/frontend",
+    "color": "1D76DB",
+    "description": "Frontend application area"
+  },
+  {
+    "name": "area/data",
+    "color": "5319E7",
+    "description": "Data pipeline, database, or analytics area"
+  },
+  {
+    "name": "area/infra",
+    "color": "C5DEF5",
+    "description": "Infrastructure, deployment, or DevOps area"
+  },
+  {
+    "name": "area/docs",
+    "color": "0075CA",
+    "description": "Documentation area"
+  },
+  {
+    "name": "level/easy",
+    "color": "C2E0C6",
+    "description": "Good first task or low complexity"
+  },
+  {
+    "name": "level/medium",
+    "color": "FBCA04",
+    "description": "Moderate complexity"
+  },
+  {
+    "name": "level/hard",
+    "color": "D93F0B",
+    "description": "High complexity or high risk"
+  },
+  {
+    "name": "pinned",
+    "color": "5319E7",
+    "description": "Intentionally kept open and excluded from stale handling"
+  },
+  {
+    "name": "security",
+    "color": "B60205",
+    "description": "Security-sensitive issue or pull request excluded from stale handling"
+  },
+  {
+    "name": "blocked",
+    "color": "D93F0B",
+    "description": "Blocked by an external dependency or pending decision"
+  }
+]

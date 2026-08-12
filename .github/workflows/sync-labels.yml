@@ -1,0 +1,113 @@
+name: Sync GitHub Labels
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - .github/labels.json
+      - .github/workflows/sync-labels.yml
+  workflow_dispatch:
+    inputs:
+      delete_unknown_labels:
+        description: Delete labels that are not defined in labels.json
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  issues: write
+
+concurrency:
+  group: sync-labels
+  cancel-in-progress: false
+
+jobs:
+  sync-labels:
+    name: Sync labels.json
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Sync labels
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          # 삭제는 opt-in입니다. workflow_dispatch 입력 또는 repository variable
+          # DELETE_UNKNOWN_LABELS를 'true'로 설정했을 때만 labels.json에 없는
+          # 라벨을 삭제합니다. (dependabot 등 다른 도구가 만든 라벨 보호)
+          DELETE_UNKNOWN_LABELS: ${{ inputs.delete_unknown_labels || vars.DELETE_UNKNOWN_LABELS || 'false' }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const deleteUnknown = process.env.DELETE_UNKNOWN_LABELS === 'true';
+            const desiredLabels = JSON.parse(fs.readFileSync('.github/labels.json', 'utf8'));
+            const desiredByName = new Map(desiredLabels.map((label) => [label.name, label]));
+            const existingLabels = await github.paginate(github.rest.issues.listLabelsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            const existingByName = new Map(existingLabels.map((label) => [label.name, label]));
+
+            let created = 0;
+            let updated = 0;
+            let unchanged = 0;
+
+            for (const label of desiredLabels) {
+              const existing = existingByName.get(label.name);
+              const color = label.color.replace(/^#/, '');
+              const description = label.description || '';
+
+              if (!existing) {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  color,
+                  description,
+                });
+                core.info(`created: ${label.name}`);
+                created += 1;
+              } else if (existing.color !== color || (existing.description || '') !== description) {
+                await github.rest.issues.updateLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  new_name: label.name,
+                  color,
+                  description,
+                });
+                core.info(`updated: ${label.name}`);
+                updated += 1;
+              } else {
+                unchanged += 1;
+              }
+            }
+
+            const unknownLabels = existingLabels.filter((label) => !desiredByName.has(label.name));
+
+            if (deleteUnknown) {
+              for (const label of unknownLabels) {
+                await github.rest.issues.deleteLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                });
+                core.info(`deleted: ${label.name}`);
+              }
+            } else if (unknownLabels.length > 0) {
+              core.warning(
+                `labels.json에 없는 라벨 ${unknownLabels.length}개를 남겨둡니다: ` +
+                unknownLabels.map((label) => label.name).join(', ') +
+                ' — 삭제하려면 DELETE_UNKNOWN_LABELS를 true로 설정하세요.'
+              );
+            }
+
+            core.info(
+              `done: created=${created} updated=${updated} unchanged=${unchanged} ` +
+              `unknown=${unknownLabels.length} deleteUnknown=${deleteUnknown}`
+            );

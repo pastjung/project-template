@@ -1,0 +1,39 @@
+version: 2
+updates:
+  # GitHub Actions는 모든 프로젝트에 공통으로 적용됩니다.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # 아래 ecosystem은 해당 스택을 사용할 때 주석을 해제합니다.
+  # 사용하지 않는 ecosystem을 켜두면 Dependabot 탭에 오류가 남습니다.
+
+  # - package-ecosystem: npm
+  #   directory: /
+  #   schedule:
+  #     interval: weekly
+  #   groups:
+  #     npm-minor-patch:
+  #       update-types:
+  #         - minor
+  #         - patch
+
+  # - package-ecosystem: pip
+  #   directory: /
+  #   schedule:
+  #     interval: weekly
+
+  # - package-ecosystem: gradle
+  #   directory: /
+  #   schedule:
+  #     interval: weekly
+
+  # - package-ecosystem: docker
+  #   directory: /
+  #   schedule:
+  #     interval: weekly

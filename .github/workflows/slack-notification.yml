@@ -1,0 +1,154 @@
+name: Slack Notification
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - closed
+  issues:
+    types:
+      - opened
+      - closed
+      - reopened
+  push:
+    branches:
+      - main
+      - dev
+  workflow_run:
+    workflows:
+      - CI
+      - CD
+      - Deploy
+    types:
+      - completed
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: read
+
+jobs:
+  slack-notification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Build Slack message
+        id: message
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const eventName = context.eventName;
+            const { owner, repo } = context.repo;
+            const repository = `${owner}/${repo}`;
+            const actor = context.actor;
+            const payload = context.payload;
+
+            const shortSha = context.sha?.slice(0, 7) || '';
+            const repoUrl = `https://github.com/${repository}`;
+            let title = `GitHub event: ${eventName}`;
+            let text = `Repository: ${repository}\nActor: ${actor}`;
+            let color = '#439FE0';
+            let url = repoUrl;
+
+            if (eventName === 'pull_request') {
+              const pr = payload.pull_request;
+              title = `Pull Request ${payload.action}: #${pr.number} ${pr.title}`;
+              text = [
+                `Repository: ${repository}`,
+                `Author: ${pr.user.login}`,
+                `Base: ${pr.base.ref}`,
+                `Head: ${pr.head.ref}`,
+              ].join('\n');
+              color = payload.action === 'closed'
+                ? (pr.merged ? '#2EB67D' : '#D73A4A')
+                : '#439FE0';
+              url = pr.html_url;
+            }
+
+            if (eventName === 'issues') {
+              const issue = payload.issue;
+              title = `Issue ${payload.action}: #${issue.number} ${issue.title}`;
+              text = [
+                `Repository: ${repository}`,
+                `Author: ${issue.user.login}`,
+                `Labels: ${issue.labels.map((label) => label.name).join(', ') || '-'}`,
+              ].join('\n');
+              color = payload.action === 'closed' ? '#2EB67D' : '#ECB22E';
+              url = issue.html_url;
+            }
+
+            if (eventName === 'push') {
+              const branch = payload.ref.replace('refs/heads/', '');
+              title = `Push to ${branch}`;
+              text = [
+                `Repository: ${repository}`,
+                `Actor: ${actor}`,
+                `Commit: ${shortSha}`,
+                `Message: ${payload.head_commit?.message || '-'}`,
+              ].join('\n');
+              color = branch === 'main' ? '#2EB67D' : '#439FE0';
+              url = payload.head_commit?.url || repoUrl;
+            }
+
+            if (eventName === 'workflow_run') {
+              const workflow = payload.workflow_run;
+              title = `Workflow ${workflow.conclusion}: ${workflow.name}`;
+              text = [
+                `Repository: ${repository}`,
+                `Branch: ${workflow.head_branch}`,
+                `Status: ${workflow.status}`,
+                `Conclusion: ${workflow.conclusion}`,
+              ].join('\n');
+              color = workflow.conclusion === 'success' ? '#2EB67D' : '#D73A4A';
+              url = workflow.html_url;
+            }
+
+            // Block Kit 형식을 사용합니다. attachment의 title/text/footer/ts
+            // 필드는 Slack이 legacy로 분류했고, color 사이드바만 attachment로
+            // 유지한 채 내용은 blocks로 구성하는 것이 현행 권장 방식입니다.
+            const escapeMrkdwn = (value) =>
+              String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            const message = {
+              attachments: [
+                {
+                  color,
+                  blocks: [
+                    {
+                      type: 'section',
+                      text: {
+                        type: 'mrkdwn',
+                        text: `*<${url}|${escapeMrkdwn(title)}>*\n${escapeMrkdwn(text)}`,
+                      },
+                    },
+                    {
+                      type: 'context',
+                      elements: [{ type: 'mrkdwn', text: 'GitHub Actions' }],
+                    },
+                  ],
+                },
+              ],
+            };
+
+            core.setOutput('payload', JSON.stringify(message));
+
+      - name: Send Slack notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_PAYLOAD: ${{ steps.message.outputs.payload }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL secret is not configured. Skipping Slack notification."
+            exit 0
+          fi
+
+          # --fail-with-body: webhook 폐기(410)나 잘못된 payload(400)를
+          # job 실패로 드러내 알림 유실을 감지할 수 있게 합니다.
+          curl -sS --fail-with-body -X POST \
+            -H 'Content-type: application/json' \
+            --data "$SLACK_PAYLOAD" \
+            "$SLACK_WEBHOOK_URL"

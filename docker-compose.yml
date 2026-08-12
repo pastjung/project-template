@@ -1,0 +1,28 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8080
+      APP_NAME: spring-boot-app
+      APP_VERSION: 0.1.0
+    ports:
+      - "8080:8080"
+      - "35729:35729"
+    volumes:
+      - ./src:/workspace/src
+      - ./build.gradle:/workspace/build.gradle:ro
+      - ./settings.gradle:/workspace/settings.gradle:ro
+      - gradle-cache:/home/gradle/.gradle
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  gradle-cache:
+

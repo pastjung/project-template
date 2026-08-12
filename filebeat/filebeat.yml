@@ -1,0 +1,14 @@
+filebeat.inputs:
+  - type: filestream
+    id: app-logs
+    paths:
+      - /var/log/app/*.log
+    # 애플리케이션이 JSON 라인 로그를 쓴다는 전제로 필드를 구조화합니다.
+    # (logs/app.log 샘플 참고) 평문 로그라면 parsers 블록을 제거하세요.
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+
+output.logstash:
+  hosts: ["logstash:5044"]

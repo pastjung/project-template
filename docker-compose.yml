@@ -1,0 +1,93 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.19.0}
+    environment:
+      discovery.type: single-node
+      # 로컬 개발 전용 구성입니다. 보안이 꺼져 있으므로 외부에 노출하지 마세요.
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ILM 정책과 index template을 생성하는 일회성 초기화 컨테이너입니다.
+  # logs-app-* data stream은 7일 후 삭제되는 lifecycle을 갖습니다.
+  setup:
+    image: curlimages/curl:8.11.1
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        curl -sf -X PUT http://elasticsearch:9200/_ilm/policy/logs-app-7d \
+          -H 'Content-Type: application/json' \
+          -d '{"policy":{"phases":{"hot":{"actions":{"rollover":{"max_age":"1d","max_primary_shard_size":"5gb"}}},"delete":{"min_age":"7d","actions":{"delete":{}}}}}}'
+        curl -sf -X PUT http://elasticsearch:9200/_index_template/logs-app \
+          -H 'Content-Type: application/json' \
+          -d '{"index_patterns":["logs-app-*"],"data_stream":{},"priority":500,"template":{"settings":{"index.lifecycle.name":"logs-app-7d"}}}'
+        echo "ILM policy and index template created."
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.19.0}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 45s
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.19.0}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+    environment:
+      LS_JAVA_OPTS: -Xms512m -Xmx512m
+    restart: unless-stopped
+    # 5044는 compose 내부에서만 사용하므로 호스트에 노출하지 않습니다.
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9600/?pretty > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION:-8.19.0}
+    user: root
+    # 설정 파일 소유자 검사(strict.perms)는 호스트 마운트 환경에서
+    # 기동 실패의 흔한 원인이라 비활성화합니다.
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    depends_on:
+      logstash:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs:/var/log/app:ro
+
+volumes:
+  elasticsearch-data:

@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect stacks
+    runs-on: ubuntu-latest
+    outputs:
+      node: ${{ steps.detect.outputs.node }}
+      python: ${{ steps.detect.outputs.python }}
+      gradle: ${{ steps.detect.outputs.gradle }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Detect project manifests
+        id: detect
+        run: |
+          # 저장소에 존재하는 스택만 빌드합니다. 모노레포에서 하위 폴더를
+          # 대상으로 하려면 경로를 조정하세요 (예: frontend/app/package.json).
+          {
+            echo "node=$([ -f package.json ] && echo true || echo false)"
+            echo "python=$([ -f pyproject.toml ] || [ -f requirements.txt ] && echo true || echo false)"
+            echo "gradle=$([ -f gradlew ] && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
+
+  node:
+    name: Node build and test
+    needs: detect
+    if: needs.detect.outputs.node == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --if-present: 스크립트가 없는 프로젝트에서도 실패하지 않습니다.
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Test
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build --if-present
+
+  python:
+    name: Python lint and test
+    needs: detect
+    if: needs.detect.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install -e '.[dev]' || pip install -e .
+          fi
+
+      - name: Lint
+        run: |
+          if command -v ruff > /dev/null; then ruff check .; else echo "ruff not installed, skipping"; fi
+
+      - name: Test
+        run: |
+          if command -v pytest > /dev/null; then pytest; else echo "pytest not installed, skipping"; fi
+
+  gradle:
+    name: Gradle build
+    needs: detect
+    if: needs.detect.outputs.gradle == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Build and test
+        run: ./gradlew build --no-daemon

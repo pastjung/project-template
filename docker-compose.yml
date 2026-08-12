@@ -1,0 +1,33 @@
+x-flink-common: &flink-common
+  image: flink:1.20.0-scala_2.12-java17
+  restart: unless-stopped
+  # FLINK_PROPERTIES는 줄바꿈이 있어야 해서 env_file로는 전달할 수 없습니다.
+  # (env_file은 \n을 리터럴 문자로 취급) Flink 공식 문서의 권장 방식인
+  # environment의 YAML 멀티라인을 사용합니다.
+  environment:
+    - |
+      FLINK_PROPERTIES=
+      jobmanager.rpc.address: jobmanager
+      taskmanager.numberOfTaskSlots: 2
+      parallelism.default: 1
+
+services:
+  jobmanager:
+    <<: *flink-common
+    command: jobmanager
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./jobs:/opt/flink/jobs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/overview || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  taskmanager:
+    <<: *flink-common
+    command: taskmanager
+    depends_on:
+      - jobmanager

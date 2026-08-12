@@ -1,0 +1,10 @@
+services:
+  module-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ${MAIN_MODULE_LOCAL_PATH:-./workspace/main-module}:/workspace/main-module
+    working_dir: /workspace/main-module

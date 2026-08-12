@@ -1,0 +1,167 @@
+name: Main Module Sync
+
+on:
+  repository_dispatch:
+    types:
+      - sub-module-updated
+  workflow_dispatch:
+    inputs:
+      module_name:
+        description: Sub module name
+        required: true
+      module_path:
+        description: Path in main module repository
+        required: true
+      module_repository:
+        description: "Sub module repository. Example: owner/sub-module-repo"
+        required: true
+      module_ref:
+        description: Branch or tag to sync
+        required: true
+        default: main
+      module_sha:
+        description: Commit SHA to sync. Required for submodule mode and preferred for subtree mode
+        required: false
+      sync_mode:
+        description: Sync mode. submodule or subtree
+        required: true
+        default: submodule
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: module-sync-${{ github.event.client_payload.module_name || inputs.module_name }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync Sub Module
+    runs-on: ubuntu-latest
+
+    env:
+      MODULE_NAME: ${{ github.event.client_payload.module_name || inputs.module_name }}
+      MODULE_PATH: ${{ github.event.client_payload.module_path || inputs.module_path }}
+      MODULE_REPOSITORY: ${{ github.event.client_payload.module_repository || inputs.module_repository }}
+      MODULE_REF: ${{ github.event.client_payload.module_ref || inputs.module_ref || 'main' }}
+      MODULE_SHA: ${{ github.event.client_payload.module_sha || inputs.module_sha }}
+      SYNC_MODE: ${{ github.event.client_payload.sync_mode || inputs.sync_mode || vars.MODULE_SYNC_MODE || 'submodule' }}
+
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: dev
+          fetch-depth: 0
+          submodules: recursive
+          # MODULE_SYNC_TOKEN(PAT 또는 GitHub App token)을 등록하면 그 token으로
+          # push와 PR 생성을 수행합니다. 기본 github.token으로 생성한 PR은
+          # GitHub 정책상 pull_request workflow(CI)를 트리거하지 않으므로,
+          # sync PR에서 CI를 실행하려면 MODULE_SYNC_TOKEN이 필요합니다.
+          token: ${{ secrets.MODULE_SYNC_TOKEN || github.token }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync module
+        env:
+          GH_TOKEN: ${{ secrets.MODULE_SYNC_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$MODULE_NAME" ] || [ -z "$MODULE_PATH" ] || [ -z "$MODULE_REPOSITORY" ]; then
+            echo "MODULE_NAME, MODULE_PATH, and MODULE_REPOSITORY are required."
+            exit 1
+          fi
+
+          SHORT_SHA="${MODULE_SHA:0:7}"
+          if [ -z "$SHORT_SHA" ]; then
+            SHORT_SHA="$(date +%Y%m%d%H%M%S)"
+          fi
+
+          SYNC_BRANCH="sync/${MODULE_NAME}-${SHORT_SHA}"
+          git switch -c "$SYNC_BRANCH"
+
+          if [ "$SYNC_MODE" = "submodule" ]; then
+            if [ -z "$MODULE_SHA" ]; then
+              echo "MODULE_SHA is required when SYNC_MODE is submodule."
+              exit 1
+            fi
+
+            git submodule update --init --recursive "$MODULE_PATH"
+            git -C "$MODULE_PATH" fetch origin "$MODULE_REF"
+            git -C "$MODULE_PATH" checkout "$MODULE_SHA"
+            git add "$MODULE_PATH"
+            if ! git diff --cached --quiet; then
+              git commit -m "chore: sync ${MODULE_NAME} sub module"
+            fi
+          elif [ "$SYNC_MODE" = "subtree" ]; then
+            git remote add module-sync "https://github.com/${MODULE_REPOSITORY}.git" 2>/dev/null \
+              || git remote set-url module-sync "https://github.com/${MODULE_REPOSITORY}.git"
+            git fetch module-sync "$MODULE_REF"
+
+            MODULE_TARGET="$MODULE_REF"
+            if [ -n "$MODULE_SHA" ]; then
+              if ! git cat-file -e "${MODULE_SHA}^{commit}"; then
+                echo "MODULE_SHA ${MODULE_SHA} was not found after fetching ${MODULE_REF}."
+                exit 1
+              fi
+              MODULE_TARGET="$MODULE_SHA"
+            fi
+
+            if [ -d "$MODULE_PATH" ]; then
+              if ! git subtree pull \
+                --prefix="$MODULE_PATH" \
+                module-sync "$MODULE_TARGET" \
+                --squash \
+                -m "chore: sync ${MODULE_NAME} sub module"; then
+                echo "::error::git subtree pull failed for ${MODULE_PATH}. This is usually a merge conflict between the sub module and local changes under the subtree path. Resolve it manually with scripts/module-sync-local.sh."
+                git merge --abort 2>/dev/null || true
+                exit 1
+              fi
+            else
+              mkdir -p "$(dirname "$MODULE_PATH")"
+              git subtree add \
+                --prefix="$MODULE_PATH" \
+                module-sync "$MODULE_TARGET" \
+                --squash \
+                -m "chore: sync ${MODULE_NAME} sub module"
+            fi
+          else
+            echo "Unsupported SYNC_MODE: $SYNC_MODE"
+            exit 1
+          fi
+
+          if git diff --quiet dev HEAD; then
+            echo "No module sync changes."
+            exit 0
+          fi
+
+          git push --force-with-lease origin "$SYNC_BRANCH"
+
+          OPEN_PR_COUNT=$(gh pr list --base dev --head "$SYNC_BRANCH" --state open --json number --jq 'length')
+          if [ "$OPEN_PR_COUNT" -gt 0 ]; then
+            echo "Open sync PR already exists for ${SYNC_BRANCH}. Branch was updated."
+            exit 0
+          fi
+
+          PR_BODY=$(cat <<EOF
+          Sync sub module update into main module dev branch.
+
+          Module: ${MODULE_NAME}
+          Repository: ${MODULE_REPOSITORY}
+          Ref: ${MODULE_REF}
+          SHA: ${MODULE_SHA:-N/A}
+          Path: ${MODULE_PATH}
+          Mode: ${SYNC_MODE}
+          EOF
+          )
+
+          gh pr create \
+            --base dev \
+            --head "$SYNC_BRANCH" \
+            --title "chore: sync ${MODULE_NAME} sub module" \
+            --body "$PR_BODY"

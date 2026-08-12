@@ -1,0 +1,77 @@
+name: Sub Module Dispatch
+
+on:
+  push:
+    branches:
+      - main
+      - release/**
+  workflow_dispatch:
+    inputs:
+      main_module_repository:
+        description: "Main module repository. Example: owner/main-module-repo"
+        required: true
+      module_name:
+        description: Sub module name
+        required: true
+      module_path:
+        description: Path in main module repository
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: Dispatch Sub Module Update
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send repository dispatch
+        env:
+          MAIN_MODULE_REPOSITORY: ${{ inputs.main_module_repository || vars.MAIN_MODULE_REPOSITORY }}
+          MAIN_MODULE_DISPATCH_TOKEN: ${{ secrets.MAIN_MODULE_DISPATCH_TOKEN }}
+          MODULE_NAME: ${{ inputs.module_name || vars.MODULE_NAME || github.event.repository.name }}
+          MODULE_PATH: ${{ inputs.module_path || vars.MODULE_PATH }}
+          MODULE_REPOSITORY: ${{ github.repository }}
+          MODULE_REF: ${{ github.ref_name }}
+          MODULE_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$MAIN_MODULE_REPOSITORY" ]; then
+            echo "MAIN_MODULE_REPOSITORY is not configured."
+            exit 1
+          fi
+
+          if [ -z "$MAIN_MODULE_DISPATCH_TOKEN" ]; then
+            echo "MAIN_MODULE_DISPATCH_TOKEN secret is not configured."
+            exit 1
+          fi
+
+          if [ -z "$MODULE_PATH" ]; then
+            echo "MODULE_PATH is not configured."
+            exit 1
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg module_name "$MODULE_NAME" \
+            --arg module_path "$MODULE_PATH" \
+            --arg module_repository "$MODULE_REPOSITORY" \
+            --arg module_ref "$MODULE_REF" \
+            --arg module_sha "$MODULE_SHA" \
+            '{
+              event_type: "sub-module-updated",
+              client_payload: {
+                module_name: $module_name,
+                module_path: $module_path,
+                module_repository: $module_repository,
+                module_ref: $module_ref,
+                module_sha: $module_sha
+              }
+            }')
+
+          # --fail-with-body: token 만료(401)나 저장소 오타(404)를 job 실패로 드러냅니다.
+          curl -sS --fail-with-body -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $MAIN_MODULE_DISPATCH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$MAIN_MODULE_REPOSITORY/dispatches" \
+            -d "$PAYLOAD"

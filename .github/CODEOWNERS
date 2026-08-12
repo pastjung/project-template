@@ -1,0 +1,24 @@
+# 병합 후 {{OWNER}}를 실제 organization/사용자명으로, 팀 slug를 실제 팀으로
+# 치환해야 합니다. 치환 전에는 GitHub이 unknown owner 오류를 표시합니다.
+
+# Default owners for every file in the repository.
+* @{{OWNER}}/repo-admins
+
+# GitHub repository configuration.
+/.github/ @{{OWNER}}/repo-admins
+
+# Application areas.
+/backend/ @{{OWNER}}/backend
+/frontend/ @{{OWNER}}/frontend
+/api/ @{{OWNER}}/backend
+
+# Data and infrastructure areas.
+/data/ @{{OWNER}}/data
+/observability/ @{{OWNER}}/infra
+/settings/ @{{OWNER}}/infra
+
+# Documentation and repository process.
+/docs/ @{{OWNER}}/docs
+/git/ @{{OWNER}}/repo-maintainers
+/modules/ @{{OWNER}}/repo-maintainers
+/ai/ @{{OWNER}}/ai

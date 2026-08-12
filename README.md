@@ -72,8 +72,14 @@
 Claude Code나 Codex 같은 Agent로 조립을 자동화할 수 있습니다.
 
 - **조립 스킬**: [skills/assemble-project/SKILL.md](skills/assemble-project/SKILL.md)를
-  `.claude/skills/`에 복사하면 "FastAPI + Kafka + CI로 프로젝트 세팅해줘" 같은
-  요청으로 조립이 자동화됩니다.
+  Claude Code의 스킬 폴더에 복사하면 "FastAPI + Kafka + CI로 프로젝트 세팅해줘"
+  같은 요청으로 조립이 자동화됩니다. 전역 폴더(`~/.claude/skills/`)에 넣으면
+  어떤 브랜치·클론에서든 인식됩니다 (PC마다 1회).
+
+  ```bash
+  mkdir -p ~/.claude/skills/assemble-project
+  git show origin/main:skills/assemble-project/SKILL.md > ~/.claude/skills/assemble-project/SKILL.md
+  ```
 - **검증 스크립트**: [scripts/validate_composition.py](scripts/validate_composition.py)
 
   ```bash

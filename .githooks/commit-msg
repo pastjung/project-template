@@ -1,0 +1,32 @@
+#!/bin/sh
+# Conventional Commits 형식을 검사하는 commit-msg hook입니다.
+# 활성화: git config core.hooksPath .githooks
+#
+# 허용 형식 (standards/commit-strategy와 동일한 type 목록):
+#   <type>: <subject>
+#   <type>(<scope>): <subject>
+#   <emoji> <type>: <subject>          (gitmoji 병용 시)
+#   <emoji> <type>(<scope>): <subject>
+#
+# merge/revert 커밋과 fixup!/squash! 커밋은 검사하지 않습니다.
+
+MSG_FILE="$1"
+FIRST_LINE=$(head -n 1 "$MSG_FILE")
+
+case "$FIRST_LINE" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *) exit 0 ;;
+esac
+
+TYPES="init|feat|fix|build|chore|ci|docs|style|refactor|test|perf|revert|release"
+
+# 선택적 gitmoji(비ASCII 문자들) 접두 + type(scope)?: subject
+if printf '%s' "$FIRST_LINE" | grep -Eq "^([^a-zA-Z0-9[:space:]]+ )?($TYPES)(\([a-z0-9./-]+\))?: .+"; then
+  exit 0
+fi
+
+echo "commit-msg hook: 커밋 메시지가 Conventional Commits 형식이 아닙니다." >&2
+echo "  형식: <type>(<scope>): <subject>  (scope는 선택)" >&2
+echo "  허용 type: init feat fix build chore ci docs style refactor test perf revert release" >&2
+echo "  현재 메시지: $FIRST_LINE" >&2
+echo "  자세한 규칙: docs/standards-commit-strategy.md" >&2
+exit 1

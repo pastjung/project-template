@@ -1,0 +1,29 @@
+services:
+  spark-master:
+    # Bitnami 공개 카탈로그가 2025-08 종료되어 공식 apache/spark 이미지를 사용합니다.
+    image: apache/spark:3.5.3
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    restart: unless-stopped
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    volumes:
+      - ./jobs:/opt/spark/jobs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080 > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  spark-worker:
+    image: apache/spark:3.5.3
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    volumes:
+      - ./jobs:/opt/spark/jobs

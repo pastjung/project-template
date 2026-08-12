@@ -6,7 +6,7 @@
 
 | Branch | Description | Result Path |
 | --- | --- | --- |
-| `settings/editor-config` | 에디터와 IDE의 기본 파일 포맷 규칙 | `.editorconfig`, `docs/editor-config.md` |
+| `settings/editor-config` | 에디터와 IDE의 기본 파일 포맷 규칙 | `.editorconfig`, `docs/settings-editor-config.md` |
 
 ## Before Import
 

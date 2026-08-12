@@ -8,7 +8,8 @@
 | Branch | Description | Result Path |
 | --- | --- | --- |
 | `git/attributes` | 줄 끝 정규화와 binary 파일 처리 기준 | `.gitattributes`, `docs/git-attributes.md` |
-| `git/ignore` | 공통 ignore 규칙 | `.gitignore`, `docs/gitignore-guide.md` |
+| `git/ignore` | 공통 ignore 규칙 | `.gitignore`, `docs/git-ignore.md` |
+| `git/hooks` | 커밋 메시지 검사 hook | `.githooks/commit-msg`, `docs/git-hooks.md` |
 
 ## Before Import
 
@@ -45,4 +46,19 @@ Full History Mode:
 
 ```bash
 git merge --no-ff -m "init: merge gitignore" origin/git/ignore
+```
+
+## Hooks
+
+Single Commit Mode:
+
+```bash
+git merge --squash origin/git/hooks
+git commit -m "init: add git hooks"
+```
+
+Full History Mode:
+
+```bash
+git merge --no-ff -m "init: merge git hooks" origin/git/hooks
 ```

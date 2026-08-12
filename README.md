@@ -15,7 +15,7 @@
 | `dev` | 새 프로젝트를 만들기 위한 조립용 브랜치입니다. |
 | `settings/*` | 에디터, IDE, 개발 환경 기본값을 관리합니다. |
 | `git/*` | `.gitignore`, `.gitattributes`처럼 Git 동작에 직접 영향을 주는 설정을 관리합니다. |
-| `docs/*` | 브랜치 전략, 커밋 전략, 코드 컨벤션 같은 문서형 운영 기준을 관리합니다. |
+| `standards/*` | 브랜치 전략, 커밋 전략, 코드 컨벤션 같은 문서형 운영 기준을 관리합니다. |
 | `github/*` | GitHub 템플릿, 라벨, CODEOWNERS, Actions workflow를 관리합니다. |
 | `ai/*` | AI 코드 리뷰와 AI 협업 가이드를 관리합니다. |
 | `api/*` | API 설계와 응답 규칙을 관리합니다. |
@@ -33,7 +33,7 @@
 | --- | --- | --- |
 | Settings | [settings/README.md](settings/README.md) | EditorConfig 같은 개발 환경 기본값 |
 | Git | [git/README.md](git/README.md) | Git attributes, Git ignore |
-| Docs | [docs/README.md](docs/README.md) | 브랜치 전략, 커밋 전략, 코드 컨벤션 |
+| Standards | [standards/README.md](standards/README.md) | 브랜치 전략, 커밋 전략, 코드 컨벤션 |
 | GitHub | [github/README.md](github/README.md) | PR/Issue 템플릿, 라벨, CODEOWNERS, semantic PR, stale issue, Slack 알림 |
 | AI | [ai/README.md](ai/README.md) | AI 리뷰 가이드와 AI 리뷰 workflow |
 | API | [api/README.md](api/README.md) | HTTP 응답 규칙 |
@@ -48,9 +48,9 @@
 | Group | Guide | Branches |
 | --- | --- | --- |
 | Settings | [settings/README.md](settings/README.md) | `settings/editor-config` |
-| Git | [git/README.md](git/README.md) | `git/attributes`, `git/ignore` |
-| Docs | [docs/README.md](docs/README.md) | `docs/branch-strategy`, `docs/commit-strategy`, `docs/code-convention` |
-| GitHub | [github/README.md](github/README.md) | `github/pr-template`, `github/issue-template`, `github/labels`, `github/codeowners`, `github/semantic-pr`, `github/stale-issues`, `github/slack-notification` |
+| Git | [git/README.md](git/README.md) | `git/attributes`, `git/ignore`, `git/hooks` |
+| Standards | [standards/README.md](standards/README.md) | `standards/branch-strategy`, `standards/commit-strategy`, `standards/code-convention` |
+| GitHub | [github/README.md](github/README.md) | `github/pr-template`, `github/issue-template`, `github/labels`, `github/codeowners`, `github/semantic-pr`, `github/stale-issues`, `github/slack-notification`, `github/ci`, `github/dependabot`, `github/release`, `github/community` |
 | AI | [ai/README.md](ai/README.md) | `ai/review-guide`, `ai/review-openai`, `ai/review-gemini`, `ai/review-claude`, `ai/review-copilot` |
 | API | [api/README.md](api/README.md) | `api/http-response` |
 | Modules | [modules/README.md](modules/README.md) | `modules/main`, `modules/sub`, `modules/sync` |
@@ -60,6 +60,40 @@
 | Data streaming and batch | [data/pipelines/README.md](data/pipelines/README.md) | `data/kafka`, `data/flink`, `data/spark`, `data/airflow` |
 | Logging stack | [observability/logging/README.md](observability/logging/README.md) | `observability/elastic-stack` |
 | Monitoring stack | [observability/monitoring/README.md](observability/monitoring/README.md) | `observability/prometheus-grafana` |
+
+## Documentation Standards
+
+모든 브랜치의 `docs/` 문서가 따르는 파일명 규칙, front matter 표준, placeholder
+규칙은 [docs/README.md](docs/README.md)에서 관리합니다. Agent(Claude Code, Codex)가
+브랜치를 자동 조립할 때도 이 표준의 front matter를 파싱합니다.
+
+## Agent Usage
+
+Claude Code나 Codex 같은 Agent로 조립을 자동화할 수 있습니다.
+
+- **조립 스킬**: [skills/assemble-project/SKILL.md](skills/assemble-project/SKILL.md)를
+  `.claude/skills/`에 복사하면 "FastAPI + Kafka + CI로 프로젝트 세팅해줘" 같은
+  요청으로 조립이 자동화됩니다.
+- **검증 스크립트**: [scripts/validate_composition.py](scripts/validate_composition.py)
+
+  ```bash
+  # 템플릿 저장소에서: 전체 브랜치 카탈로그 정합성 검사
+  uv run scripts/validate_composition.py catalog
+
+  # 조립된 프로젝트에서: requires/conflicts/placeholder/후속 작업 검사
+  uv run scripts/validate_composition.py project
+  ```
+
+Agent의 조립 판단 기준은 각 브랜치 `docs/*.md` 상단의 YAML front matter입니다.
+의사코드로 요약하면:
+
+```text
+1. git fetch 후 모든 브랜치의 docs front matter 수집
+2. 사용자 요구 → 브랜치 선택, requires 재귀 추가, conflicts 확인
+3. Setup Order 순서로 merge --squash (앱 브랜치는 read-tree --prefix)
+4. placeholders 질문·치환 → validate_composition.py project로 검증
+5. after-import/secrets 체크리스트 제시
+```
 
 ## Recommended Project Setup Order
 
@@ -71,22 +105,27 @@
 | 1 | [`settings/editor-config`](settings/README.md) | 필수 | 프로젝트 파일을 본격적으로 추가하기 전 | 언어별 들여쓰기 규칙이 팀 기준과 맞는지 확인합니다. |
 | 2 | [`git/attributes`](git/README.md) | 필수 | `.editorconfig` 다음 | Windows, macOS, Linux 혼합 사용 여부에 맞춰 줄 끝 정책과 binary 확장자를 확인합니다. |
 | 3 | [`git/ignore`](git/README.md) | 필수 | 기술 스택 브랜치를 가져오기 전 | 실제 사용하는 언어, IDE, 빌드 도구에 맞춰 ignore 규칙을 보강합니다. |
-| 4 | [`docs/branch-strategy`](docs/README.md) | 추천 | 협업 브랜치 흐름을 정하기 전 | Git Flow, GitHub Flow, trunk-based 등 팀 운영 방식에 맞춰 수정합니다. |
-| 5 | [`docs/commit-strategy`](docs/README.md) | 추천 | PR 제목, changelog, release note 규칙을 정하기 전 | commit type, scope 사용 여부, squash merge 정책을 팀 기준에 맞춥니다. |
+| 4 | [`standards/branch-strategy`](standards/README.md) | 추천 | 협업 브랜치 흐름을 정하기 전 | Git Flow, GitHub Flow, trunk-based 등 팀 운영 방식에 맞춰 수정합니다. |
+| 5 | [`standards/commit-strategy`](standards/README.md) | 추천 | PR 제목, changelog, release note 규칙을 정하기 전 | commit type, scope 사용 여부, squash merge 정책을 팀 기준에 맞춥니다. |
 | 6 | [`github/labels`](github/README.md) | 추천 | issue, PR, stale 정책을 운영하기 전 | 실제 사용할 라벨만 남기고 `status/stale` 같은 자동화 라벨을 확인합니다. |
-| 7 | [`github/semantic-pr`](github/README.md) | 추천 | [`docs/commit-strategy`](docs/README.md) 적용 후 | 허용 type과 scope 필수 여부를 commit 전략과 일치시킵니다. |
+| 7 | [`github/semantic-pr`](github/README.md) | 추천 | [`standards/commit-strategy`](standards/README.md) 적용 후 | 허용 type과 scope 필수 여부를 commit 전략과 일치시킵니다. |
 | 8 | [`github/pr-template`](github/README.md), [`github/issue-template`](github/README.md) | 추천 | GitHub에서 PR과 issue를 운영하기 전 | 템플릿 질문, 체크리스트, 담당자 흐름을 프로젝트에 맞게 줄이거나 추가합니다. |
 | 9 | [`github/codeowners`](github/README.md) | 추천 | PR 리뷰 담당 영역을 자동 요청하고 싶을 때 | 실제 GitHub organization, team 이름으로 owner placeholder를 교체합니다. |
 | 10 | [`github/stale-issues`](github/README.md) | 선택 | issue를 꾸준히 관리해야 할 때 | stale 기간, 자동 close 여부, 예외 라벨을 팀 합의에 맞게 수정합니다. |
 | 11 | [`github/slack-notification`](github/README.md) | 선택 | GitHub Actions 알림을 Slack으로 받을 때 | webhook, 알림 대상 workflow, 채널 정책을 확인합니다. |
-| 12 | [`docs/code-convention`](docs/README.md) | 추천 | 본격적인 코드 작성 전 | 사용하는 언어와 formatter, linter 기준에 맞춰 구체화합니다. |
+| 12 | [`standards/code-convention`](standards/README.md) | 추천 | 본격적인 코드 작성 전 | 사용하는 언어와 formatter, linter 기준에 맞춰 구체화합니다. |
 | 13 | [`api/http-response`](api/README.md) | 선택 | API 서버를 만드는 프로젝트에서 | 응답 포맷과 에러 코드 체계를 백엔드 스택에 맞게 조정합니다. |
 | 14 | [`modules/main`](modules/README.md), [`modules/sub`](modules/README.md), [`modules/sync`](modules/README.md) | 선택 | 멀티 모듈이나 저장소 간 동기화가 필요할 때 | 모듈 이름, 동기화 대상, GitHub secret을 실제 구조에 맞게 수정합니다. |
 | 15 | [`ai/review-*`](ai/README.md) | 선택 | AI 코드 리뷰 workflow를 쓸 때 | API key, 실행 조건, 비용 정책을 확인합니다. |
+| 16 | [`github/ci`](github/README.md) | 추천 | 코드가 생기기 시작할 때 | 모노레포라면 스택 감지 경로를 조정하고, branch protection required check로 등록합니다. |
+| 17 | [`git/hooks`](git/README.md) | 추천 | [`standards/commit-strategy`](standards/README.md) 적용 후 | 팀원 각자 `git config core.hooksPath .githooks`를 실행합니다. |
+| 18 | [`github/dependabot`](github/README.md) | 추천 | 의존성이 생기기 시작할 때 | 사용하는 스택의 ecosystem 주석을 해제합니다. |
+| 19 | [`github/community`](github/README.md) | 선택 | 외부 기여를 받기 시작할 때 | SECURITY.md의 연락처 placeholder를 치환합니다. |
+| 20 | [`github/release`](github/README.md) | 선택 | 릴리즈 자동화가 필요할 때 | 시작 버전을 조정하고, release PR CI를 위해 PAT 등록을 검토합니다. |
 
 최소 세팅만 빠르게 시작하려면 [`settings/editor-config`](settings/README.md), [`git/attributes`](git/README.md),
 [`git/ignore`](git/README.md)를 먼저 적용합니다. PR 기반 협업까지 바로 시작하려면
-[`docs/commit-strategy`](docs/README.md), [`github/labels`](github/README.md), [`github/semantic-pr`](github/README.md), [`github/pr-template`](github/README.md)을
+[`standards/commit-strategy`](standards/README.md), [`github/labels`](github/README.md), [`github/semantic-pr`](github/README.md), [`github/pr-template`](github/README.md)을
 이어서 적용하는 흐름이 가장 무난합니다.
 
 ## Composition Rules
@@ -108,17 +147,17 @@ git commit -m "init: add settings"
 ```
 
 ```bash
-git merge --squash origin/git/attributes origin/git/ignore
+git merge --squash origin/git/attributes origin/git/ignore origin/git/hooks
 git commit -m "init: add Git settings"
 ```
 
 ```bash
-git merge --squash origin/docs/branch-strategy origin/docs/commit-strategy origin/docs/code-convention
+git merge --squash origin/standards/branch-strategy origin/standards/commit-strategy origin/standards/code-convention
 git commit -m "init: add documentation standards"
 ```
 
 ```bash
-git merge --squash origin/github/pr-template origin/github/issue-template origin/github/labels origin/github/codeowners origin/github/semantic-pr origin/github/stale-issues origin/github/slack-notification
+git merge --squash origin/github/pr-template origin/github/issue-template origin/github/labels origin/github/codeowners origin/github/semantic-pr origin/github/stale-issues origin/github/slack-notification origin/github/ci origin/github/dependabot origin/github/release origin/github/community
 git commit -m "init: add GitHub templates and automation"
 ```
 

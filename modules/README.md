@@ -7,9 +7,9 @@
 
 | Branch | Description | Result Path |
 | --- | --- | --- |
-| `modules/main` | 멀티모듈 구조에서 메인 모듈 역할과 운영 기준 | `docs/main-module.md` |
-| `modules/sub` | 멀티모듈 구조에서 서브 모듈 역할과 운영 기준 | `docs/sub-module.md` |
-| `modules/sync` | 서브 모듈 변경을 메인 모듈 `dev`로 반영하는 자동화 | `.github/workflows/main-module-sync.yml`, `.github/workflows/sub-module-dispatch.yml`, `docs/module-sync.md` |
+| `modules/main` | 멀티모듈 구조에서 메인 모듈 역할과 운영 기준 | `docs/modules-main.md` |
+| `modules/sub` | 멀티모듈 구조에서 서브 모듈 역할과 운영 기준 | `docs/modules-sub.md` |
+| `modules/sync` | 서브 모듈 변경을 메인 모듈 `dev`로 반영하는 자동화 | `.github/workflows/main-module-sync.yml`, `.github/workflows/sub-module-dispatch.yml`, `docs/modules-sync.md` |
 
 ## Before Import
 

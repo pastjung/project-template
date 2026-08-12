@@ -6,7 +6,7 @@
 
 | Branch | Description | Result Path |
 | --- | --- | --- |
-| `api/http-response` | 성공, 실패, 인증, 권한, validation, 외부 API 오류 등 상황별 HTTP 응답 기준 | `docs/http-response.md` |
+| `api/http-response` | 성공, 실패, 인증, 권한, validation, 외부 API 오류 등 상황별 HTTP 응답 기준 | `docs/api-http-response.md` |
 
 ## Before Import
 
